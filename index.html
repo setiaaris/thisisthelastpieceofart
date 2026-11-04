@@ -248,6 +248,57 @@
     .tip-note { font-size: 0.6875rem; color: #9aa0b8; display: none; }
     .tooltip.copied .tip-note { display: block; }
 
+    /* ---------- Image lightbox ---------- */
+    .art { cursor: zoom-in; }
+    .lightbox {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: flex;                          /* margin:auto on the image centers it, or scrolls if taller */
+      padding: 72px 24px 24px;
+      overflow-y: auto;                       /* tall images scroll instead of being cropped */
+      overscroll-behavior: contain;
+      background: rgba(0, 0, 0, 0.88);       /* black, slightly transparent */
+      cursor: zoom-out;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.35s var(--ease), visibility 0s 0.35s;
+    }
+    .lightbox.open {
+      opacity: 1;
+      visibility: visible;
+      transition: opacity 0.35s var(--ease);
+    }
+    .lightbox img {
+      display: block;
+      flex-shrink: 0;
+      width: 100%;                            /* full width, natural height */
+      max-width: 900px;                       /* remove this line for truly edge-to-edge */
+      height: auto;
+      margin: auto;
+      border-radius: 6px;
+      transform: scale(0.94);
+      transition: transform 0.5s var(--ease);
+    }
+    .lightbox.open img { transform: scale(1); }
+    .lb-close {
+      position: fixed;
+      top: max(16px, env(safe-area-inset-top));
+      right: 16px;
+      width: 40px;
+      height: 40px;
+      border: 1px solid rgba(255, 255, 255, 0.35);
+      border-radius: 50%;
+      background: transparent;
+      color: #fff;
+      font-size: 1.5rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: background 0.25s, color 0.25s;
+    }
+    .lb-close:hover { background: #fff; color: #000; }
+    .lightbox :focus-visible { outline-color: #fff; }
+
     :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
     /* ---------- Tablet / mobile ---------- */
@@ -302,7 +353,7 @@
         <span class="w" aria-hidden="true"><span style="--d:.65s">up.</span></span>
       </h1>
 
-      <div class="art">
+      <div class="art" role="button" tabindex="0" aria-label="View image larger">
         <img src="image.png" alt="Ink pen drawing in a white frame">
       </div>
 
@@ -321,6 +372,10 @@
         </a>
       </div>
     </footer>
+  </div>
+  <div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="Image preview">
+    <button type="button" class="lb-close" id="lbClose" aria-label="Close image">&times;</button>
+    <img id="lbImg" src="" alt="">
   </div>
   <script>
     (function () {
@@ -374,6 +429,43 @@
 
       Promise.all([pageLoaded, fontsLoaded]).then(start);
       setTimeout(start, 4000);                // safety net on very slow connections
+    })();
+  </script>
+  <script>
+    (function () {
+      var art = document.querySelector('.art');
+      var box = document.getElementById('lightbox');
+      var big = document.getElementById('lbImg');
+      var closeBtn = document.getElementById('lbClose');
+      var thumb = art.querySelector('img');
+      var lastFocus = null;
+
+      function open() {
+        lastFocus = document.activeElement;
+        big.src = thumb.currentSrc || thumb.src;
+        big.alt = thumb.alt;
+        box.classList.add('open');
+        document.body.style.overflow = 'hidden';
+        closeBtn.focus({ preventScroll: true });
+      }
+      function close() {
+        if (!box.classList.contains('open')) return;
+        box.classList.remove('open');
+        document.body.style.overflow = '';
+        if (lastFocus) lastFocus.focus({ preventScroll: true });
+      }
+
+      art.addEventListener('click', open);
+      art.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); open(); }
+      });
+      box.addEventListener('click', close);            // click anywhere to close
+      closeBtn.addEventListener('click', close);
+      document.addEventListener('keydown', function (e) {
+        if (!box.classList.contains('open')) return;
+        if (e.key === 'Escape') close();
+        if (e.key === 'Tab') { e.preventDefault(); closeBtn.focus(); }  // keep focus inside
+      });
     })();
   </script>
 </body>
